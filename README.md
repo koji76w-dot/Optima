@@ -1,6 +1,5 @@
 ![Optima Cover Image](image1.jpg)
-Please use the minimum width stated in in the software configurations
-When installing Optima, Google Play Protect might show an "App blocked" warning because it's a direct GitHub release. Just disable play protect and install it again—it's completely safe and open-source!
+Please use the minimum width stated in in the software configurations. Please read the side loading note at the bottom
 # What is Optima?
 Optima is an open source android launcher in beta specifically designed for Android x86 and to be used with PC or laptop peripherals. Optima aims to make a sleek minimal desktop for any android computer or laptop
 
@@ -37,3 +36,6 @@ Optima in its current state was tested on the following:
 1. Optima can work on android emulators with some flaws like the added difficulty of opening the app drawer or notifications drawer + dock tooltip not working
 2. Note While general Android emulators are supported with minor quirks, Optima is primarily engineered and optimized for Android-x86 desktop/laptop environments
 3. If you run into any bugs, feel free to open an issue on the GitHub repository!
+
+# Sideloading note
+When installing Optima, Google Play Protect might show an "App blocked" warning because it's a direct GitHub release. Just go to play protect settings, pause play protect, and install Optima again—it's completely safe and open-source!
