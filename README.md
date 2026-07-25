@@ -5,15 +5,15 @@ Optima is an android launcher in beta specifically designed for Android x86 and 
 
 # Optima recommended hardware/software configurations
 Optima's in its current state was tested on the following:
-Optima was tested and designed around 16:9 displays
-Optima was tested and works best on a minimum width of ≈ 813 - 829
-Optima was tested on Android-x86 9.0 R2
+1. Optima was tested and designed around 16:9 displays
+2. Optima was tested and works best on a minimum width of ≈ 813 - 829
+3. Optima was tested on Android-x86 9.0 R2
 
 # Optima navigation and use
-Move your mouse cursor to the far left to open the app drawer
-Move your mouse cursor to the far right to open the notifacation drwer which includes stats like the battery
-Hold click on apps in the dock to remove or uninstall them
-Hold click on apps in the app drawer to add them to the dock or uninstall them
+1. Move your mouse cursor to the far left to open the app drawer
+2. Move your mouse cursor to the far right to open the notifacation drwer which includes stats like the battery
+3. Hold click on apps in the dock to remove or uninstall them
+4. Hold click on apps in the app drawer to add them to the dock or uninstall them
 
 # How to change the minimum width?
 1. Go to the settings app and Click "About"
