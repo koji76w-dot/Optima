@@ -22,3 +22,8 @@ Optima in its current state was tested on the following:
 2. Click the buildnumber 7 times to enable developer mode
 3. Find and click on developer options
 4. Find the minimum width text box and change it to 813 - 829
+
+# Extra info
+1. Optima can work on android emulators with some flaws like the added difficulty of opening the app drawer or notifications drawer + dock tooltip not working
+2. Note While general Android emulators are supported with minor quirks, Optima is primarily engineered and optimized for Android-x86 desktop/laptop environments
+3. If you run into any bugs, feel free to open an issue on the GitHub repository!
