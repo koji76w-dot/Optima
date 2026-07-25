@@ -14,6 +14,7 @@ Optima in its current state was tested on the following:
 2. Move your mouse cursor to the far right to open the notifacation drwer which includes stats like the battery
 3. Hold click on apps in the dock to remove or uninstall them
 4. Hold click on apps in the app drawer to add them to the dock or uninstall them
+5. Hold click the clock to change its y position, size, and thickness
 
 # How to change the minimum width?
 1. Go to the settings app and Click "About"
