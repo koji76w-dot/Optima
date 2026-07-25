@@ -7,7 +7,8 @@ Optima is an open source android launcher in beta specifically designed for Andr
 Optima in its current state was tested on the following:
 1. Optima was tested and designed around 16:9 displays
 2. Optima was tested and works best on a minimum width of ≈ 813 - 829
-3. Optima was tested on Android-x86 9.0 R2
+3. Optima was tested on Android-x86 9.0 R2 but can be used on many other Android x86 distros
+4. Optima requires Android 9.0+
 
 # Optima navigation and use
 1. Move your mouse cursor to the far left to open the app drawer
