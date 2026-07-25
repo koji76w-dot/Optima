@@ -30,6 +30,7 @@ Optima in its current state was tested on the following:
 4. Minor upgrades to the app dock and app drawer
 5. Apps on the desktop
 6. Ability to switch between 24h and 12h clock
+7. Change the color of the clock
 
 # Extra info
 1. Optima can work on android emulators with some flaws like the added difficulty of opening the app drawer or notifications drawer + dock tooltip not working
