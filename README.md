@@ -27,7 +27,7 @@ Optima in its current state was tested on the following:
 1. Changing the wallpaper
 2. Full controll over the clock widget
 3. Widgets about the status of the device
-4. Minor upgrades to the app dock
+4. Minor upgrades to the app dock and app drawer
 5. Apps on the desktop
 6. Ability to switch between 24h and 12h clock
 
