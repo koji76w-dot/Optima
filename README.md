@@ -1,5 +1,6 @@
 ![Optima Cover Image](image1.jpg)
 Please use the minimum width stated in in the software configurations
+When installing Optima, Google Play Protect might show an "App blocked" warning because it's a direct GitHub release. Just disable play protect and install it again—it's completely safe and open-source!
 # What is Optima?
 Optima is an open source android launcher in beta specifically designed for Android x86 and to be used with PC or laptop peripherals. Optima aims to make a sleek minimal desktop for any android computer or laptop
 
