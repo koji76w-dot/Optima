@@ -4,7 +4,7 @@ Please use the minimum width stated in in the software configurations
 Optima is an android launcher in beta specifically designed for Android x86 and to be used with PC or laptop peripherals. Optima aims to make a sleek minimal desktop for any android computer or laptop
 
 # Optima recommended hardware/software configurations
-Optima's in its current state was tested on the following:
+Optima in its current state was tested on the following:
 1. Optima was tested and designed around 16:9 displays
 2. Optima was tested and works best on a minimum width of ≈ 813 - 829
 3. Optima was tested on Android-x86 9.0 R2
