@@ -15,9 +15,9 @@ Optima in its current state was tested on the following:
 # Optima navigation and use
 1. Move your mouse cursor to the far left to open the app drawer
 2. Move your mouse cursor to the far right to open the notifacation drwer which includes stats like the battery
-3. Hold click on apps in the dock to remove or uninstall them
-4. Hold click on apps in the app drawer to add them to the dock or uninstall them
-5. Hold click the clock to change its y position, size, and thickness
+3. Hold click on apps in the dock to remove or uninstall
+4. Hold click on apps in the app drawer to add them to the dock, uninstall them, or hide them
+5. Hold click the clock to change its y position, size, thickness, and font
 
 # How to change the minimum width?
 1. Go to the settings app and Click "About"
@@ -26,13 +26,8 @@ Optima in its current state was tested on the following:
 4. Find the minimum width text box and change it to 715
 
 # Planned features
-1. Changing the wallpaper
-2. Full controll over the clock widget
 3. Widgets about the status of the device
-4. Minor upgrades to the app dock and app drawer
 5. Apps on the desktop
-6. Ability to switch between 24h and 12h clock
-7. Change the color of the clock
 
 # Extra info
 1. Optima can work on android emulators with some flaws like the added difficulty of opening the app drawer or notifications drawer + dock tooltip not working
