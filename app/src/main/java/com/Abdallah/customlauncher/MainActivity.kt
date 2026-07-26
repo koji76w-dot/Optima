@@ -1,6 +1,5 @@
 package com.Abdallah.customlauncher
 
-import android.Manifest
 import android.app.Notification
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -8,7 +7,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
@@ -17,7 +15,6 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -26,8 +23,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -56,19 +51,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -77,24 +73,27 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 
 data class AppItem(
     val label: String,
     val packageName: String,
-    val icon: Drawable?,
+    val iconBitmap: ImageBitmap?,
     val isSystem: Boolean,
     val category: String
 )
@@ -108,7 +107,7 @@ data class NotifItem(
     val key: String,
     val packageName: String,
     val appName: String,
-    val appIcon: Drawable?,
+    val appIconBitmap: ImageBitmap?,
     val title: String,
     val text: String,
     val actions: List<NotificationActionItem>,
@@ -144,9 +143,15 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Perpetual check for Notification Access permission & trigger initial/active fetch
+                // Perpetual check for Notification Access permission.
+                // NOTE: this only force-refreshes notifications once, right when access is
+                // newly granted. Real updates come from onNotificationPosted/Removed and from
+                // the panel-open effect below - polling triggerRefresh() every second here was
+                // re-hitting PackageManager for every active notification, every second,
+                // forever, which was a big source of the jank.
                 var hasNotificationAccess by remember { mutableStateOf(false) }
                 LaunchedEffect(Unit) {
+                    var wasAccessGranted = false
                     while (true) {
                         val listenerSetting = Settings.Secure.getString(
                             context.contentResolver,
@@ -155,9 +160,10 @@ class MainActivity : ComponentActivity() {
                         val packageName = context.packageName
                         hasNotificationAccess = listenerSetting != null && listenerSetting.contains(packageName)
 
-                        if (hasNotificationAccess) {
+                        if (hasNotificationAccess && !wasAccessGranted) {
                             CustomNotificationListener.instance?.triggerRefresh()
                         }
+                        wasAccessGranted = hasNotificationAccess
 
                         delay(1000L)
                     }
@@ -173,10 +179,14 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Load Installed Apps
+                // Load Installed Apps (icons are decoded to ImageBitmap once here, instead of
+                // re-decoding a Drawable -> Bitmap on every recomposition of every list item)
                 var installedApps by remember { mutableStateOf<List<AppItem>>(emptyList()) }
 
-                fun loadApps() {
+                // Runs on Dispatchers.Default: this walks every installed package and decodes
+                // an icon for each one, which is real CPU work. Keeping it off the main thread
+                // means it can't drop frames during the app's first composition/animation.
+                suspend fun loadApps(): List<AppItem> = withContext(Dispatchers.Default) {
                     val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(PackageManager.GET_META_DATA.toLong()))
                     } else {
@@ -202,7 +212,9 @@ class MainActivity : ComponentActivity() {
                         }
 
                         val finalLabel = if (label.isBlank()) packageName.substringAfterLast('.') else label
-                        val icon = try { packageManager.getApplicationIcon(packageName) } catch (e: Exception) { null }
+                        val iconBitmap = try {
+                            packageManager.getApplicationIcon(packageName).toBitmap(width = 120, height = 120).asImageBitmap()
+                        } catch (e: Exception) { null }
 
                         val category = when {
                             packageName.contains("game", true) -> "Games"
@@ -212,14 +224,14 @@ class MainActivity : ComponentActivity() {
                             else -> "All"
                         }
 
-                        AppItem(finalLabel, packageName, icon, isSystemApp, category)
+                        AppItem(finalLabel, packageName, iconBitmap, isSystemApp, category)
                     }.sortedBy { it.label.lowercase() }
 
-                    installedApps = apps
+                    apps
                 }
 
                 LaunchedEffect(Unit) {
-                    loadApps()
+                    installedApps = loadApps()
                 }
 
                 var sortOrder by remember { mutableStateOf("A-Z") }
@@ -233,6 +245,18 @@ class MainActivity : ComponentActivity() {
                 var clockFontSize by remember { mutableStateOf(sharedPreferences.getFloat("clock_font_size", 54f)) }
                 var clockFontWeightIndex by remember { mutableStateOf(sharedPreferences.getInt("clock_font_weight_index", 1)) }
                 var showClockAdjustDialog by remember { mutableStateOf(false) }
+
+                // Bound the clock's Y offset to the actual screen height instead of a fixed
+                // 800dp ceiling, and reserve room for the text height (which grows with
+                // clockFontSize) plus the dock area, so the clock can't be pushed off-screen.
+                val configuration = LocalConfiguration.current
+                val maxClockY = (configuration.screenHeightDp.toFloat() - (clockFontSize * 1.3f) - 160f)
+                    .coerceAtLeast(0f)
+                val clampedClockY = clockYOffset.coerceIn(0f, maxClockY)
+
+                LaunchedEffect(maxClockY) {
+                    if (clockYOffset > maxClockY) clockYOffset = maxClockY
+                }
 
                 val weightList = listOf(
                     FontWeight.Thin,
@@ -307,28 +331,43 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Parallax depth offsets calculation (increased wallpaper movement so it's clearly noticeable)
+                // Resolve dock AppItems once per dockPackageNames/installedApps change instead
+                // of hitting PackageManager.getApplicationIcon/getApplicationLabel for every
+                // dock slot on every recomposition (this was the main dock-open lag).
+                val dockApps = remember(dockPackageNames, installedApps) {
+                    dockPackageNames.mapNotNull { pkgName ->
+                        installedApps.find { it.packageName == pkgName } ?: run {
+                            val appInfo = try { packageManager.getApplicationInfo(pkgName, 0) } catch (e: Exception) { null }
+                            if (appInfo == null) {
+                                null
+                            } else {
+                                val label = try { packageManager.getApplicationLabel(appInfo).toString() } catch (e: Exception) { pkgName.substringAfterLast('.') }
+                                val iconBitmap = try {
+                                    packageManager.getApplicationIcon(pkgName).toBitmap(width = 120, height = 120).asImageBitmap()
+                                } catch (e: Exception) { null }
+                                AppItem(label, pkgName, iconBitmap, false, "All")
+                            }
+                        }
+                    }
+                }
+
+                // Parallax depth offsets calculation
                 val baseShiftDp = if (isDrawerOpen) 100.dp else if (isNotificationsOpen) (-100).dp else 0.dp
 
-                // 1. Wallpaper background shift (increased to 100dp)
+                // 1. Wallpaper background shift
                 val wallpaperShift by animateDpAsState(
                     targetValue = baseShiftDp,
                     animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
                     label = "wallpaperShift"
                 )
 
-                // 2. Clock and Dock shift (kept at 160dp to maintain clear depth separation ahead of wallpaper)
+                // 2. Clock and Dock shift
                 val foregroundShift by animateDpAsState(
                     targetValue = if (isDrawerOpen) 160.dp else if (isNotificationsOpen) (-160).dp else 0.dp,
                     animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
                     label = "foregroundShift"
                 )
 
-                val backgroundBlur by animateDpAsState(
-                    targetValue = if (isDrawerOpen || isNotificationsOpen) 8.dp else 0.dp,
-                    animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
-                    label = "backgroundBlur"
-                )
 
                 Box(
                     modifier = Modifier.fillMaxSize()
@@ -364,9 +403,9 @@ class MainActivity : ComponentActivity() {
                                     Column(modifier = Modifier.fillMaxWidth()) {
                                         Text(text = "Y Position: ${clockYOffset.toInt()} dp", color = Color(0xFFCCCCCC), fontSize = 13.sp)
                                         Slider(
-                                            value = clockYOffset,
+                                            value = clockYOffset.coerceIn(0f, maxClockY),
                                             onValueChange = { clockYOffset = it },
-                                            valueRange = 0f..1200f
+                                            valueRange = 0f..maxClockY
                                         )
                                     }
 
@@ -447,24 +486,18 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
-
                     // --- BACKGROUND LAYER ---
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .then(
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                    Modifier.blur(backgroundBlur)
-                                } else {
-                                    Modifier
-                                }
-                            )
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        // Wallpaper Layer with loop filler (moves at baseline wallpaperShift)
+                        // Wallpaper Layer with loop filler (moves at baseline wallpaperShift).
+                        // Uses a lambda-based offset so reading the animated value happens at
+                        // layout time, not composition time - the wallpaper no longer
+                        // recomposes on every animation frame during a drawer/notif open.
                         BoxWithConstraints(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .offset(x = wallpaperShift)
+                                .offset { IntOffset(wallpaperShift.roundToPx(), 0) }
                         ) {
                             val screenWidth = maxWidth
 
@@ -498,12 +531,12 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Top Center Clock (moves at foregroundShift for parallax depth)
+                        // Top Center Clock (moves at foregroundShift for parallax depth, clamped Y offset)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .align(Alignment.TopCenter)
-                                .offset(x = foregroundShift, y = clockYOffset.dp),
+                                .offset { IntOffset(foregroundShift.roundToPx(), clampedClockY.dp.roundToPx()) },
                             contentAlignment = Alignment.Center
                         ) {
                             TopCenterClock(
@@ -513,11 +546,13 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Dock Container (moves at foregroundShift along with the clock)
+                        // Dock Container (Optimized with hardware acceleration via graphicsLayer)
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
-                                .offset(x = foregroundShift)
+                                .graphicsLayer {
+                                    translationX = foregroundShift.toPx()
+                                }
                                 .padding(bottom = 20.dp)
                                 .wrapContentWidth(Alignment.CenterHorizontally)
                                 .background(Color(0x66FFFFFF), RoundedCornerShape(28.dp))
@@ -527,23 +562,20 @@ class MainActivity : ComponentActivity() {
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                dockPackageNames.forEach { pkgName ->
-                                    val launchIntent = packageManager.getLaunchIntentForPackage(pkgName)
-                                    val appInfo = try { packageManager.getApplicationInfo(pkgName, 0) } catch (e: Exception) { null }
-                                    val appLabel = appInfo?.let { packageManager.getApplicationLabel(it).toString() } ?: pkgName.substringAfterLast('.')
-                                    val appIcon = appInfo?.let { try { packageManager.getApplicationIcon(pkgName) } catch (e: Exception) { null } }
+                                dockApps.forEach { app ->
+                                    val launchIntent = packageManager.getLaunchIntentForPackage(app.packageName)
 
                                     if (launchIntent != null) {
                                         DockAppIcon(
-                                            icon = appIcon,
-                                            label = appLabel,
-                                            packageName = pkgName,
+                                            iconBitmap = app.iconBitmap,
+                                            label = app.label,
+                                            packageName = app.packageName,
                                             isInDock = true,
                                             onUninstall = { pkg ->
                                                 context.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:$pkg")))
                                             },
                                             onAddToDock = {},
-                                            onRemoveFromDock = { dockPackageNames = dockPackageNames - pkgName }
+                                            onRemoveFromDock = { dockPackageNames = dockPackageNames - app.packageName }
                                         ) {
                                             context.startActivity(launchIntent)
                                         }
@@ -557,7 +589,7 @@ class MainActivity : ComponentActivity() {
                     Box(
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        // 1. Left Apps Drawer Panel
+                        // 1. Left Apps Drawer Panel (Optimized with hardware-accelerated clipping layer)
                         val drawerPanelInteractionSource = remember { MutableInteractionSource() }
                         val isDrawerPanelHovered by drawerPanelInteractionSource.collectIsHoveredAsState()
 
@@ -585,21 +617,31 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        AnimatedVisibility(
-                            visible = isDrawerOpen,
-                            enter = slideInHorizontally(
-                                initialOffsetX = { -it },
-                                animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
-                            ) + fadeIn(animationSpec = tween(600)),
-                            exit = slideOutHorizontally(
-                                targetOffsetX = { -it },
-                                animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing)
-                            ) + fadeOut(animationSpec = tween(500))
-                        ) {
+                        // Kept permanently composed instead of using AnimatedVisibility: opening
+                        // the drawer no longer re-runs composition/layout of the search box,
+                        // tabs, and the whole app grid - it only animates a transform, which is
+                        // the actual fix for "still laggy on open".
+                        val drawerOffsetX by animateDpAsState(
+                            targetValue = if (isDrawerOpen) 0.dp else (-380).dp,
+                            animationSpec = tween(durationMillis = if (isDrawerOpen) 400 else 300, easing = FastOutSlowInEasing),
+                            label = "drawerOffsetX"
+                        )
+                        val drawerAlpha by animateFloatAsState(
+                            targetValue = if (isDrawerOpen) 1f else 0f,
+                            animationSpec = tween(durationMillis = if (isDrawerOpen) 400 else 300),
+                            label = "drawerAlpha"
+                        )
+
+                        run {
                             Box(
                                 modifier = Modifier
                                     .fillMaxHeight()
                                     .width(380.dp)
+                                    .graphicsLayer {
+                                        translationX = drawerOffsetX.toPx()
+                                        alpha = drawerAlpha
+                                        clip = true
+                                    }
                                     .background(Color(0xC4FFFFFF))
                                     .hoverable(interactionSource = drawerPanelInteractionSource)
                                     .padding(start = 24.dp, top = 24.dp, bottom = 24.dp, end = 0.dp)
@@ -650,20 +692,24 @@ class MainActivity : ComponentActivity() {
                                         Spacer(modifier = Modifier.width(20.dp))
                                     }
 
-                                    val filteredApps = installedApps.filter { app ->
-                                        val matchesAppFilter = when (appFilter) {
-                                            "User Only" -> !app.isSystem
-                                            else -> true
+                                    // Memoized: only recomputed when its actual inputs change,
+                                    // instead of on every recomposition of this scope.
+                                    val filteredApps = remember(installedApps, appFilter, selectedTab, searchQuery, sortOrder) {
+                                        installedApps.filter { app ->
+                                            val matchesAppFilter = when (appFilter) {
+                                                "User Only" -> !app.isSystem
+                                                else -> true
+                                            }
+                                            val matchesTab = when (selectedTab) {
+                                                "All" -> true
+                                                else -> app.category == selectedTab
+                                            }
+                                            val matchesSearch = if (searchQuery.isBlank()) true else containsAllCharsIgnoreCase(app.label, searchQuery)
+                                            matchesAppFilter && matchesTab && matchesSearch
+                                        }.let { list ->
+                                            if (sortOrder == "A-Z") list.sortedBy { it.label.lowercase() }
+                                            else list.sortedByDescending { it.label.lowercase() }
                                         }
-                                        val matchesTab = when (selectedTab) {
-                                            "All" -> true
-                                            else -> app.category == selectedTab
-                                        }
-                                        val matchesSearch = if (searchQuery.isBlank()) true else containsAllCharsIgnoreCase(app.label, searchQuery)
-                                        matchesAppFilter && matchesTab && matchesSearch
-                                    }.let { list ->
-                                        if (sortOrder == "A-Z") list.sortedBy { it.label.lowercase() }
-                                        else list.sortedByDescending { it.label.lowercase() }
                                     }
 
                                     LazyVerticalGrid(
@@ -674,7 +720,7 @@ class MainActivity : ComponentActivity() {
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                         verticalArrangement = Arrangement.spacedBy(16.dp)
                                     ) {
-                                        items(filteredApps) { app ->
+                                        items(filteredApps, key = { it.packageName }) { app ->
                                             val isInDock = dockPackageNames.contains(app.packageName)
                                             DrawerAppItem(
                                                 app = app,
@@ -696,7 +742,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // 2. Right Notifications Panel
+                        // 2. Right Notifications Panel (Optimized with hardware-accelerated clipping layer)
                         val notifPanelInteractionSource = remember { MutableInteractionSource() }
                         val isNotifPanelHovered by notifPanelInteractionSource.collectIsHoveredAsState()
 
@@ -728,12 +774,12 @@ class MainActivity : ComponentActivity() {
                             visible = isNotificationsOpen,
                             enter = slideInHorizontally(
                                 initialOffsetX = { it },
-                                animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
-                            ) + fadeIn(animationSpec = tween(600)),
+                                animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)
+                            ) + fadeIn(animationSpec = tween(400)),
                             exit = slideOutHorizontally(
                                 targetOffsetX = { it },
-                                animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing)
-                            ) + fadeOut(animationSpec = tween(500)),
+                                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+                            ) + fadeOut(animationSpec = tween(300)),
                             modifier = Modifier.align(Alignment.CenterEnd)
                         ) {
                             Box(
@@ -741,6 +787,7 @@ class MainActivity : ComponentActivity() {
                                     .fillMaxHeight()
                                     .width(380.dp)
                                     .background(Color(0xC4FFFFFF))
+                                    .graphicsLayer { clip = true }
                                     .hoverable(interactionSource = notifPanelInteractionSource)
                                     .padding(start = 24.dp, top = 24.dp, bottom = 24.dp, end = 24.dp)
                             ) {
@@ -762,7 +809,6 @@ class MainActivity : ComponentActivity() {
                                             fontWeight = FontWeight.Bold
                                         )
 
-                                        // Battery Indicator next to "Notifications" text
                                         BatteryIndicator()
                                     }
 
@@ -784,7 +830,7 @@ class MainActivity : ComponentActivity() {
                                             modifier = Modifier.fillMaxSize(),
                                             verticalArrangement = Arrangement.spacedBy(12.dp)
                                         ) {
-                                            items(notifications) { notif ->
+                                            items(notifications, key = { it.key }) { notif ->
                                                 NotificationCard(notif = notif)
                                             }
                                         }
@@ -846,7 +892,6 @@ fun BatteryIndicator() {
             val bodyHeight = size.height
             val cornerRadius = 3.dp.toPx()
 
-            // Battery Body Outline
             drawRoundRect(
                 color = Color(0xFF222222),
                 size = Size(bodyWidth, bodyHeight),
@@ -854,14 +899,12 @@ fun BatteryIndicator() {
                 style = Stroke(width = 1.5.dp.toPx())
             )
 
-            // Battery Tip (Positive Terminal)
             drawRect(
                 color = Color(0xFF222222),
                 topLeft = Offset(bodyWidth, bodyHeight / 2f - 2.dp.toPx()),
                 size = Size(2.dp.toPx(), 4.dp.toPx())
             )
 
-            // Battery Fill Level
             val padding = 2.dp.toPx()
             val fillMaxWidth = (bodyWidth - (padding * 2)) * (batteryLevel / 100f)
             if (fillMaxWidth > 0f) {
@@ -884,7 +927,6 @@ fun BatteryIndicator() {
     }
 }
 
-// Notification Card with Black text styling
 @Composable
 fun NotificationCard(notif: NotifItem) {
     Box(
@@ -908,10 +950,9 @@ fun NotificationCard(notif: NotifItem) {
                         .background(Color(0x22000000)),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (notif.appIcon != null) {
-                        val bitmap = notif.appIcon.toBitmap(width = 60, height = 60)
+                    if (notif.appIconBitmap != null) {
                         Image(
-                            bitmap = bitmap.asImageBitmap(),
+                            bitmap = notif.appIconBitmap,
                             contentDescription = notif.appName,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
@@ -985,12 +1026,15 @@ fun NotificationCard(notif: NotifItem) {
     }
 }
 
-// Notification Listener Service with explicit component setting so Android lists it properly
 class CustomNotificationListener : android.service.notification.NotificationListenerService() {
 
     companion object {
         var instance: CustomNotificationListener? = null
     }
+
+    // Caches resolved (label, icon) per package for the life of the listener, so repeated
+    // notification updates from the same app don't keep re-hitting PackageManager.
+    private val appInfoCache = mutableMapOf<String, Pair<String, ImageBitmap?>>()
 
     override fun onCreate() {
         super.onCreate()
@@ -1036,9 +1080,14 @@ class CustomNotificationListener : android.service.notification.NotificationList
 
                 if (title.isBlank() && text.isBlank()) return@mapNotNull null
 
-                val appInfo = try { pm.getApplicationInfo(pkg, 0) } catch (e: Exception) { null }
-                val appName = appInfo?.let { pm.getApplicationLabel(it).toString() } ?: pkg.substringAfterLast('.')
-                val appIcon = appInfo?.let { try { pm.getApplicationIcon(pkg) } catch (e: Exception) { null } }
+                val (appName, appIconBitmap) = appInfoCache.getOrPut(pkg) {
+                    val appInfo = try { pm.getApplicationInfo(pkg, 0) } catch (e: Exception) { null }
+                    val name = appInfo?.let { pm.getApplicationLabel(it).toString() } ?: pkg.substringAfterLast('.')
+                    val bitmap = appInfo?.let {
+                        try { pm.getApplicationIcon(pkg).toBitmap(width = 60, height = 60).asImageBitmap() } catch (e: Exception) { null }
+                    }
+                    name to bitmap
+                }
 
                 val rawActions = sbn.notification.actions
                 val actionItems = mutableListOf<NotificationActionItem>()
@@ -1053,7 +1102,7 @@ class CustomNotificationListener : android.service.notification.NotificationList
                     key = sbn.key,
                     packageName = pkg,
                     appName = appName,
-                    appIcon = appIcon,
+                    appIconBitmap = appIconBitmap,
                     title = title,
                     text = text,
                     actions = actionItems,
@@ -1123,9 +1172,8 @@ fun DrawerAppItem(app: AppItem, isInDock: Boolean, onClick: () -> Unit, onUninst
                 modifier = Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).background(Color(0x22000000)),
                 contentAlignment = Alignment.Center
             ) {
-                if (app.icon != null) {
-                    val bitmap = app.icon.toBitmap(width = 120, height = 120)
-                    Image(bitmap = bitmap.asImageBitmap(), contentDescription = app.label, modifier = Modifier.fillMaxSize().padding(4.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
+                if (app.iconBitmap != null) {
+                    Image(bitmap = app.iconBitmap, contentDescription = app.label, modifier = Modifier.fillMaxSize().padding(4.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
                 }
             }
             Text(text = app.label, color = Color(0xFF222222), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -1179,7 +1227,7 @@ fun DrawerTab(text: String, isSelected: Boolean, onClick: () -> Unit) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun DockAppIcon(icon: Drawable?, label: String, packageName: String, isInDock: Boolean, onUninstall: (String) -> Unit, onAddToDock: () -> Unit, onRemoveFromDock: () -> Unit, onClick: () -> Unit) {
+fun DockAppIcon(iconBitmap: ImageBitmap?, label: String, packageName: String, isInDock: Boolean, onUninstall: (String) -> Unit, onAddToDock: () -> Unit, onRemoveFromDock: () -> Unit, onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
     var showMenu by remember { mutableStateOf(false) }
@@ -1207,9 +1255,8 @@ fun DockAppIcon(icon: Drawable?, label: String, packageName: String, isInDock: B
             modifier = Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).combinedClickable(onClick = onClick, onLongClick = { showMenu = true }),
             contentAlignment = Alignment.Center
         ) {
-            if (icon != null) {
-                val bitmap = icon.toBitmap(width = 120, height = 120)
-                Image(bitmap = bitmap.asImageBitmap(), contentDescription = label, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            if (iconBitmap != null) {
+                Image(bitmap = iconBitmap, contentDescription = label, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             }
         }
 
