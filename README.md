@@ -6,7 +6,7 @@ Optima is an open source android launcher in beta specifically designed for Andr
 # Optima recommended hardware/software configurations
 Optima in its current state was tested on the following:
 1. Optima was tested and designed around 16:9 displays
-2. Optima was tested and works best on a minimum width of ≈ 813 - 829
+2. Optima was tested and works best on a minimum width of ≈ 715
 3. Optima was tested on Android-x86 9.0 R2 but can be used on many other Android x86 distros
 4. Optima requires Android 9.0+
 
@@ -21,7 +21,7 @@ Optima in its current state was tested on the following:
 1. Go to the settings app and Click "About"
 2. Click the buildnumber 7 times to enable developer mode
 3. Find and click on developer options
-4. Find the minimum width text box and change it to 813 - 829
+4. Find the minimum width text box and change it to 715
 
 # Planned features
 1. Changing the wallpaper
