@@ -19,15 +19,15 @@ Optima in its current state was tested on the following:
 4. Hold click on apps in the app drawer to add them to the dock, uninstall them, or hide them
 5. Hold click the clock to change its y position, size, thickness, and font
 
-# How to change the minimum width?
+# Planned features
+3. Widgets about the status of the device
+5. Apps on the desktop
+
+# How to change the minimum width on your device?
 1. Go to the settings app and Click "About"
 2. Click the buildnumber 7 times to enable developer mode
 3. Find and click on developer options
 4. Find the minimum width text box and change it to 715
-
-# Planned features
-3. Widgets about the status of the device
-5. Apps on the desktop
 
 # Extra info
 1. Optima can work on android emulators with some flaws like the added difficulty of opening the app drawer or notifications drawer + dock tooltip not working
