@@ -13,7 +13,7 @@ Optima in its current state was tested on the following:
 4. Optima requires Android 9.0+
 
 # Optima navigation and use
-1. Move your mouse cursor to the far left to open the app drawer
+1. Move your mouse cursor to the far left to open the app drawer and click the settings icon to get to the launcher settings and customization.
 2. Move your mouse cursor to the far right to open the notifacation drwer which includes stats like the battery
 3. Hold click on apps in the dock to remove or uninstall
 4. Hold click on apps in the app drawer to add them to the dock, uninstall them, or hide them
