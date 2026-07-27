@@ -8,7 +8,7 @@ Optima is an open source android launcher specifically designed for Android x86 
 # Optima recommended hardware/software configurations
 Optima in its current state was tested on the following:
 
-1. Optima was tested and designed around 16:9 displays
+1. Optima was tested and designed around 16:9 displays (now it works on all displays)
 
 2. Optima was tested and works best on a minimum width of ≈ 715
 
