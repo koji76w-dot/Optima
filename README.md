@@ -16,6 +16,9 @@ Optima in its current state was tested on the following:
 
 4. Optima requires Android 9.0+
 
+5. Me as koji76w, Highly recommends using regular Android x86, while distros like PrimeOS do work their SystemUI custom taskbars often interfere with the dock on the desktop + Android x86 has root and super user allowing you to only have the navigation bar pop up when its needed and not stay covering the dock
+(see how to do this is the extra info)
+
 # Optima navigation and use
 1. Move your mouse cursor to the far left to open the app drawer and click the settings icon to get to the launcher settings and customization.
 
