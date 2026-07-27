@@ -31,7 +31,7 @@ Optima in its current state was tested on the following:
 
 # Extra info
 1. For a better experience, use an androidx86 distro that doesnt have a task bar baked into the navigation bar like the original Androidx86 project
-2. 2. For a better experience, open the virtual terminal in the original android-x86 project (or connect to adb on a computer, type in command prompt `adb shell`), and run:
+2. For a better experience, open the virtual terminal in the original android-x86 project (or connect to adb on a computer, type in command prompt `adb shell`), and run:
    ```bash
    adb shell settings put global policy_control immersive.full=*
 this will stop the navigation bar from mindlessly covering the desktop dock.
