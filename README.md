@@ -34,6 +34,7 @@ Optima in its current state was tested on the following:
 2. 2. For a better experience, open the virtual terminal in the original android-x86 project (or connect to adb on a computer, type in command prompt `adb shell`), and run:
    ```bash
    adb shell settings put global policy_control immersive.full=*
+this will stop the navigation bar from mindlessly covering the desktop dock.
 4. Optima can work on android emulators with some flaws like the added difficulty of opening the app drawer or notifications drawer + dock tooltip not working
 5. Note While general Android emulators are supported with minor quirks, Optima is primarily engineered and optimized for Android-x86 desktop/laptop environments
 6. If you run into any bugs, feel free to open an issue on the GitHub repository!
