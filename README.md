@@ -31,9 +31,9 @@ Optima in its current state was tested on the following:
 5. Hold click the clock to change its y position, size, thickness, and font
 
 # Planned features
-3. Widgets about the status of the device
+1. Widgets about the status of the device
 
-5. Apps on the desktop
+2. Apps on the desktop
 
 # How to change the minimum width on your device?
 1. Go to the settings app and Click "About"
@@ -52,11 +52,11 @@ Optima in its current state was tested on the following:
    adb shell settings put global policy_control immersive.full=*
 this will stop the navigation bar from mindlessly covering the desktop dock
 
-4. Optima can work on android emulators with some flaws like the added difficulty of opening the app drawer or notifications drawer + dock tooltip not working
+3. Optima can work on android emulators with some flaws like the added difficulty of opening the app drawer or notifications drawer + dock tooltip not working
 
-5. Note While general Android emulators are supported with minor quirks, Optima is primarily engineered and optimized for Android-x86 desktop/laptop environments
+4. Note While general Android emulators are supported with minor quirks, Optima is primarily engineered and optimized for Android-x86 desktop/laptop environments
 
-6. If you run into any bugs, feel free to open an issue on the GitHub repository!
+5. If you run into any bugs, feel free to open an issue on the GitHub repository!
 
 # Sideloading note
 When installing Optima, Google Play Protect might show an "App blocked" warning because it's a direct GitHub release. Just go to play protect settings, pause play protect, and install Optima again—it's completely safe and open-source!
