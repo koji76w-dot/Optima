@@ -1,6 +1,6 @@
 Please use the minimum width stated in in the software configurations. Please read the side loading note at the bottom
 ![Optima Cover Image](image2.jpg)
-The following image⬆️uses the cursive clock font, image1.jpg in the repo includes sans serif
+The following image⬆️uses increased clock size, lowered clock y, and cursive clock font in the settings menu.
 
 # What is Optima?
 Optima is an open source android launcher in beta specifically designed for Android x86 and to be used with PC or laptop peripherals. Optima aims to make a sleek minimal desktop for any android computer or laptop
