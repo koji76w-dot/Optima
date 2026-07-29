@@ -2,6 +2,7 @@
 
 package com.Abdallah.customlauncher
 
+import android.app.ActivityOptions
 import android.app.Notification
 import android.app.PendingIntent
 import android.bluetooth.BluetoothManager
@@ -12,6 +13,7 @@ import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
+import android.graphics.Rect
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
@@ -163,6 +165,42 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Handles launching apps in either normal or Windowed Freeform mode.
+ */
+fun launchApp(context: Context, intent: Intent, isWindowedAppsEnabled: Boolean) {
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    if (isWindowedAppsEnabled) {
+        val metrics = context.resources.displayMetrics
+        val left = (metrics.widthPixels * 0.15).toInt()
+        val top = (metrics.heightPixels * 0.20).toInt()
+        val right = (metrics.widthPixels * 0.85).toInt()
+        val bottom = (metrics.heightPixels * 0.80).toInt()
+        val windowBounds = Rect(left, top, right, bottom)
+
+        val options = ActivityOptions.makeBasic()
+        options.launchBounds = windowBounds
+
+        try {
+            val setWindowingMode = ActivityOptions::class.java.getMethod(
+                "setLaunchWindowingMode", Int::class.javaPrimitiveType
+            )
+            setWindowingMode.invoke(options, 5) // WINDOWING_MODE_FREEFORM
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        try {
+            context.startActivity(intent, options.toBundle())
+        } catch (e: Exception) {
+            context.startActivity(intent)
+        }
+    } else {
+        context.startActivity(intent)
+    }
+}
+
 @Composable
 fun LauncherApp() {
     val context = LocalContext.current
@@ -262,6 +300,9 @@ fun LauncherApp() {
     }
     var hapticFeedbackEnabled by remember {
         mutableStateOf(sharedPreferences.getBoolean("haptic_feedback", true))
+    }
+    var windowedAppsBetaEnabled by remember {
+        mutableStateOf(sharedPreferences.getBoolean("windowed_apps_beta", false))
     }
     var hiddenPackageNames by remember {
         mutableStateOf(
@@ -424,6 +465,7 @@ fun LauncherApp() {
     LaunchedEffect(drawerColumns) { sharedPreferences.edit().putInt("drawer_columns", drawerColumns).apply() }
     LaunchedEffect(doubleTapToSleep) { sharedPreferences.edit().putBoolean("double_tap_to_sleep", doubleTapToSleep).apply() }
     LaunchedEffect(hapticFeedbackEnabled) { sharedPreferences.edit().putBoolean("haptic_feedback", hapticFeedbackEnabled).apply() }
+    LaunchedEffect(windowedAppsBetaEnabled) { sharedPreferences.edit().putBoolean("windowed_apps_beta", windowedAppsBetaEnabled).apply() }
     LaunchedEffect(hiddenPackageNames) { sharedPreferences.edit().putString("hidden_packages", hiddenPackageNames.joinToString(",")).apply() }
 
     LaunchedEffect(isNotificationsOpen) {
@@ -834,7 +876,7 @@ fun LauncherApp() {
                                     if (hapticFeedbackEnabled) {
                                         view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
                                     }
-                                    context.startActivity(launchIntent)
+                                    launchApp(context, launchIntent, windowedAppsBetaEnabled)
                                 }
                             }
                         }
@@ -895,17 +937,16 @@ fun LauncherApp() {
                             alpha = drawerAlpha
                             clip = true
                         }
-                        .background(drawerBaseColor.copy(alpha = if (drawerBackgroundBitmap == null) drawerTransparency else 1f))
-                        .then(
+                        .background(if (drawerBackgroundBitmap != null) drawerBaseColor else drawerBaseColor.copy(alpha = drawerTransparency))
+                        .drawBehind {
                             if (drawerBackgroundBitmap != null) {
-                                Modifier.graphicsLayer(alpha = drawerTransparency).drawBehind {
-                                    drawImage(
-                                        image = drawerBackgroundBitmap!!,
-                                        dstSize = IntSize(size.width.toInt(), size.height.toInt())
-                                    )
-                                }
-                            } else Modifier
-                        )
+                                drawImage(
+                                    image = drawerBackgroundBitmap!!,
+                                    dstSize = IntSize(size.width.toInt(), size.height.toInt()),
+                                    alpha = drawerTransparency
+                                )
+                            }
+                        }
                         .hoverable(interactionSource = drawerPanelInteractionSource)
                         .padding(start = 24.dp, top = 24.dp, bottom = 24.dp, end = 0.dp)
                 ) {
@@ -1135,6 +1176,11 @@ fun LauncherApp() {
                                             })
                                         )),
                                         Pair("Privacy & Apps", listOf(
+                                            Pair("Windowed Apps (Beta)", @Composable {
+                                                SettingCard(title = "Windowed Apps (Beta)", surfaceColor = surfaceColor, textColor = textColor, cornerRounding = cornerRounding) {
+                                                    Switch(checked = windowedAppsBetaEnabled, onCheckedChange = { windowedAppsBetaEnabled = it })
+                                                }
+                                            }),
                                             Pair("Hidden Apps", @Composable {
                                                 Box(
                                                     modifier = Modifier
@@ -1306,7 +1352,7 @@ fun LauncherApp() {
                                                         if (hapticFeedbackEnabled) {
                                                             view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
                                                         }
-                                                        context.startActivity(launchIntent)
+                                                        launchApp(context, launchIntent, windowedAppsBetaEnabled)
                                                         isDrawerOpen = false
                                                     }
                                                 },
@@ -1363,13 +1409,22 @@ fun LauncherApp() {
                 ) + fadeOut(animationSpec = tween(300)),
                 modifier = Modifier.align(Alignment.CenterEnd)
             ) {
-                val notifPanelBg = if (isDarkMode) Color(0x9918181C) else Color(0x99FFFFFF)
+                val drawerBaseColor = if (isDarkMode) Color.Black else Color.White
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
                         .width(380.dp)
-                        .background(notifPanelBg)
                         .graphicsLayer { clip = true }
+                        .background(if (drawerBackgroundBitmap != null) drawerBaseColor else drawerBaseColor.copy(alpha = drawerTransparency))
+                        .drawBehind {
+                            if (drawerBackgroundBitmap != null) {
+                                drawImage(
+                                    image = drawerBackgroundBitmap!!,
+                                    dstSize = IntSize(size.width.toInt(), size.height.toInt()),
+                                    alpha = drawerTransparency
+                                )
+                            }
+                        }
                         .hoverable(interactionSource = notifPanelInteractionSource)
                         .padding(start = 24.dp, top = 24.dp, bottom = 24.dp, end = 24.dp)
                 ) {
@@ -2084,8 +2139,7 @@ fun DockAppIcon(
                 .size(52.dp)
                 .graphicsLayer { clip = false }
                 .clip(RoundedCornerShape(cornerRounding.dp))
-                .combinedClickable(onClick = onClick, onLongClick = { showMenu = true }),
-            contentAlignment = Alignment.Center
+                .combinedClickable(onClick = onClick, onLongClick = { showMenu = true })
         ) {
             if (iconBitmap != null) {
                 Image(
